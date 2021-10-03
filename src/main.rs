@@ -82,7 +82,7 @@ fn main() -> Result<()> {
         match line.trim().split(' ').next() {
             Some("exit") | Some("quit") => break,
             Some(_) => {
-                let result: Result<(), &str> = process_line(line).expect("An error ocurred.");
+                let result: Result<(), &str> = process_line(line);
                 if !result.as_ref().unwrap_err().to_string().is_empty() {
                     let _ = result.map_err(|err| println!("doodoo: {}", err));
                 };
