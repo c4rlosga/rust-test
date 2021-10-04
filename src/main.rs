@@ -10,19 +10,27 @@ use std::path::Iter;
 // use std::ops::Index;
 use std::time::Duration;
 
-fn process_line(input: String) -> Result<(), &'static str> {
+fn process_line(input: String) -> Result<(), String> {
     // println!("we got this input: {}", &input);
     let mut iter = input.split(' ');
     let _ = match iter.next() {
         Some("get") => {
-            let mut next = Url::parse(iter.next().unwrap_or("http://marf.xyz/archive?test"));
+            let mut next = Url::parse(iter.next().unwrap_or("https://marf.xyz/archive?test"));
+            if next.is_err() {
+                return Err(next.unwrap_err().to_string());
+            }
             let _ = next.as_mut().expect("Bad URL").set_port(Some(8081));
             let client = reqwest::blocking::Client::new();
-            let result = client
+            let request = client
                 .get(next.unwrap())
                 .timeout(Duration::from_secs(4))
-                .send()?
-                .text()?;
+                .send();
+            let mut result= "".to_string();
+            if !request.is_err() {
+                result = request.unwrap().text().unwrap_or("bad result".into());
+            } else {
+                return Err(request.unwrap_err().to_string());
+            }
             println!("process_line: got this,\n{}", result);
 
             let mut json = serde_json::Deserializer::from_str(result.as_str());
@@ -82,9 +90,9 @@ fn main() -> Result<()> {
         match line.trim().split(' ').next() {
             Some("exit") | Some("quit") => break,
             Some(_) => {
-                let result: Result<(), &str> = process_line(line);
-                if !result.as_ref().unwrap_err().to_string().is_empty() {
-                    let _ = result.map_err(|err| println!("doodoo: {}", err));
+                let result = process_line(line);
+                if result.as_ref().is_err() {
+                    let _ = result.map_err(|err| println!("doodoo, {}", err));
                 };
             }
             None => {
