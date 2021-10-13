@@ -5,7 +5,7 @@ use reqwest::Url;
 use serde::Deserialize;
 use serde_json;
 use std::env;
-use std::path::Iter;
+// use std::path::Iter;
 // use serde_json::{json, Map, Value};
 // use std::ops::Index;
 use std::time::Duration;
@@ -13,19 +13,41 @@ use std::time::Duration;
 fn process_line(input: String) -> Result<(), String> {
     // println!("we got this input: {}", &input);
     let mut iter = input.split(' ');
-    let _ = match iter.next() {
+
+    match iter.next() {
         Some("get") => {
+            let mut port:Option<u16> = Some(8081);
+
+            let try_next = iter.next();
+            let try_port = iter.next();
+
+            if try_next.is_some() && try_port.is_some() {
+                if try_next.unwrap() == "-p" || try_next.unwrap() == "--port" {
+                    if !try_port.is_none() {
+                        if !try_port.unwrap().parse::<u16>().is_err() {
+                            port = Some(try_port.unwrap().parse::<u16>().unwrap());
+                            println!("process_line: doing request on port number {}", port.unwrap());
+                        } else {
+                            return Err("bad port number".to_string());
+                        }
+                    } else {
+                        return Err("missing port number".to_string());
+                    }
+                }
+            }
+
+
             let mut next = Url::parse(iter.next().unwrap_or("https://marf.xyz/archive?test"));
             if next.is_err() {
                 return Err(next.unwrap_err().to_string());
             }
-            let _ = next.as_mut().expect("Bad URL").set_port(Some(8081));
+            let _ = next.as_mut().expect("Bad URL").set_port(port);
             let client = reqwest::blocking::Client::new();
             let request = client
                 .get(next.unwrap())
                 .timeout(Duration::from_secs(4))
                 .send();
-            let mut result= "".to_string();
+            let result:String;
             if !request.is_err() {
                 result = request.unwrap().text().unwrap_or("bad result".into());
             } else {
@@ -35,10 +57,16 @@ fn process_line(input: String) -> Result<(), String> {
 
             let mut json = serde_json::Deserializer::from_str(result.as_str());
             let value = serde_json::Value::deserialize(&mut json).expect("Received bad JSON");
+            if value.get("now").is_none() {
+                return Err("Key [now] not found in JSON, can't continue".to_string());
+            }
+            if value.get("now").unwrap().as_f64().is_none() {
+                return Err("Can't parse JSON [now] as f64, invalid number??".to_string());
+            }
             let naive = NaiveDateTime::from_timestamp(
                 value
                     .get("now")
-                    .expect("No or bad date provided")
+                    .unwrap()
                     .as_f64()
                     .expect("No date or bad provided") as i64,
                 0,
