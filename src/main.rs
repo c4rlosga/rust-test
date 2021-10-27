@@ -56,6 +56,7 @@ fn process_line(input: String) -> Result<(), String> {
             println!("process_line: got this,\n{}", result);
 
             let mut json = serde_json::Deserializer::from_str(result.as_str());
+            // THIS crashes on an empty string, investigate and patch
             let value = serde_json::Value::deserialize(&mut json).expect("Received bad JSON");
             if value.get("now").is_none() {
                 return Err("Key [now] not found in JSON, can't continue".to_string());
