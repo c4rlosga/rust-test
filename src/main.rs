@@ -62,12 +62,17 @@ fn process_line(input: String) -> Result<(), String> {
                 Err(msg) => return Err(msg.to_string()),
                 Ok(processed) => value = processed,
             }
-            if value.get("now").is_none() {
-                return Err("Key [now] not found in JSON, can't continue".to_string());
+
+            match value.get("now") {
+                None => return Err("Key 'now' not in JSON, can't continue".into()),
+                Some(val) => {
+                   match val.as_f64() {
+                       None => return Err("Cannot parse JSON key 'now' as f64, invalid date?".into()),
+                       Some(_) => {},
+                   }
+                }
             }
-            if value.get("now").unwrap().as_f64().is_none() {
-                return Err("Can't parse JSON [now] as f64, invalid number??".to_string());
-            }
+
             let naive = NaiveDateTime::from_timestamp(
                 value
                     .get("now")
