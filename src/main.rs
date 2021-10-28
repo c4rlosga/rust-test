@@ -53,11 +53,15 @@ fn process_line(input: String) -> Result<(), String> {
             } else {
                 return Err(request.unwrap_err().to_string());
             }
-            println!("process_line: got this,\n{}", result);
+            println!("process_line: got this, {}", result);
 
             let mut json = serde_json::Deserializer::from_str(result.as_str());
             // THIS crashes on an empty string, investigate and patch
-            let value = serde_json::Value::deserialize(&mut json).expect("Received bad JSON");
+            let value;
+            match serde_json::Value::deserialize(&mut json) {
+                Err(msg) => return Err(msg.to_string()),
+                Ok(processed) => value = processed,
+            }
             if value.get("now").is_none() {
                 return Err("Key [now] not found in JSON, can't continue".to_string());
             }
@@ -121,7 +125,7 @@ fn main() -> Result<()> {
             Some(_) => {
                 let result = process_line(line);
                 if result.as_ref().is_err() {
-                    let _ = result.map_err(|err| println!("doodoo, {}", err));
+                    let _ = result.map_err(|err| println!("[ERR] {}", err));
                 };
             }
             None => {
